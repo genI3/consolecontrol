@@ -128,6 +128,8 @@ namespace ConsoleControlAPI
             processStartInfo.UseShellExecute = false;
             processStartInfo.ErrorDialog = false;
             processStartInfo.CreateNoWindow = true;
+            if (OutputEncoding != null)
+                processStartInfo.StandardOutputEncoding = OutputEncoding;
 
             //  Specify redirection.
             processStartInfo.RedirectStandardError = true;
@@ -369,5 +371,11 @@ namespace ConsoleControlAPI
         {
             get { return processArguments; }
         }
+
+        /// <summary>
+        /// Gets or sets command 
+        /// prompt code page.
+        /// </summary>        
+        public Encoding OutputEncoding { get; set; }
     }
 }
