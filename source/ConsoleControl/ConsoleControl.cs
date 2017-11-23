@@ -386,6 +386,25 @@ namespace ConsoleControl
         }
 
         /// <summary>
+        /// Gets or sets code page of internally used process interface.
+        /// </summary>
+        /// <value>
+        /// The process interface code page.
+        /// </value>
+        [Category("Console Control"), Description("Console output codepage.")]
+        public int CodePage
+        {
+            get
+            {
+                if (processInterace.OutputEncoding == null)
+                    processInterace.OutputEncoding = Console.OutputEncoding;
+
+                return processInterace.OutputEncoding.CodePage;
+            }
+            set { processInterace.OutputEncoding = System.Text.Encoding.GetEncoding(value); }
+        }
+
+        /// <summary>
         /// Gets a value indicating whether this instance is process running.
         /// </summary>
         /// <value>
