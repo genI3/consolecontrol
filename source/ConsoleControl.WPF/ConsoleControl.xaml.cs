@@ -362,5 +362,28 @@ namespace ConsoleControl.WPF
         {
             get { return processInterace; }
         }
+
+        /// <summary>
+        /// Gets or sets code page of internally used process interface.
+        /// </summary>
+        /// <value>
+        /// The process interface code page.
+        /// </value>                                  
+        public int CodePage
+        {
+            get { return (int)GetValue(CodePageProperty); }
+            set { SetValue(CodePageProperty, value); }
+        }              
+
+        public static readonly DependencyProperty CodePageProperty =
+          DependencyProperty.Register("CodePage", typeof(int), typeof(ConsoleControl),
+          new PropertyMetadata(Console.OutputEncoding.CodePage, new PropertyChangedCallback(OnCodePageChanged))); 
+                       
+        private static void OnCodePageChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var instance = d as ConsoleControl;
+            
+            instance.ProcessInterface.OutputEncoding = System.Text.Encoding.GetEncoding((int)e.NewValue);
+        }
     }
 }
