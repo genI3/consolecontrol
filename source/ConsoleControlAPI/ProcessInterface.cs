@@ -19,22 +19,24 @@ namespace ConsoleControlAPI
     public class ProcessInterface
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="ProcessInterface"/> class.
+        /// Creates and initializes all the background workers.
         /// </summary>
-        public ProcessInterface()
+        private void InitBackgroundWorkers()
         {
+            outputWorker = new BackgroundWorker();
             //  Configure the output worker.
             outputWorker.WorkerReportsProgress = true;
             outputWorker.WorkerSupportsCancellation = true;
             outputWorker.DoWork += outputWorker_DoWork;
             outputWorker.ProgressChanged += outputWorker_ProgressChanged;
 
+            errorWorker = new BackgroundWorker();
             //  Configure the error worker.
             errorWorker.WorkerReportsProgress = true;
             errorWorker.WorkerSupportsCancellation = true;
             errorWorker.DoWork += errorWorker_DoWork;
             errorWorker.ProgressChanged += errorWorker_ProgressChanged;
-        }
+        }   
 
         /// <summary>
         /// Handles the ProgressChanged event of the outputWorker control.
@@ -164,7 +166,8 @@ namespace ConsoleControlAPI
             outputReader = TextReader.Synchronized(process.StandardOutput);
             errorReader = TextReader.Synchronized(process.StandardError);
 
-            //  Run the workers that read output and error.
+            //  Initialize and run the workers that read output and error.
+            InitBackgroundWorkers();
             outputWorker.RunWorkerAsync();
             errorWorker.RunWorkerAsync();
         }
@@ -180,6 +183,7 @@ namespace ConsoleControlAPI
 
             //  Kill the process.
             process.Kill();
+            process.WaitForExit();
         }
 
         /// <summary>
@@ -287,12 +291,12 @@ namespace ConsoleControlAPI
         /// <summary>
         /// The output worker.
         /// </summary>
-        private BackgroundWorker outputWorker = new BackgroundWorker();
+        private BackgroundWorker outputWorker;
         
         /// <summary>
         /// The error worker.
         /// </summary>
-        private BackgroundWorker errorWorker = new BackgroundWorker();
+        private BackgroundWorker errorWorker;
 
         /// <summary>
         /// Current process file name.

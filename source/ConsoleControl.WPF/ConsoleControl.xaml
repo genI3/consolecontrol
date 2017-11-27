@@ -23,6 +23,8 @@
         FontFamily="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type consoleControl:ConsoleControl}}, Path=FontFamily}"
         Background="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type consoleControl:ConsoleControl}}, Path=Background}"
         FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type consoleControl:ConsoleControl}}, Path=FontSize}"
+        PreviewKeyDown="richTextBoxConsole_PreviewKeyDown"
+        PreviewTextInput="richTextBoxConsole_PreviewTextInput"
         CaretBrush="White">
         <RichTextBox.Resources>
             <Style TargetType="{x:Type Paragraph}">

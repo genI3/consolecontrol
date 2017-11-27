@@ -1,16 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+﻿using System.Windows;
 
 namespace ConsoleControlSample.WPF
 {
@@ -48,6 +36,13 @@ namespace ConsoleControlSample.WPF
         /// <param name="args">The <see cref="Apex.MVVM.CommandEventArgs"/> instance containing the event data.</param>
         void StartNewProcessCommand_Executed(object sender, Apex.MVVM.CommandEventArgs args)
         {
+            var dlg = new NewProcessDialog() { Owner = this };
+
+            if((bool)dlg.ShowDialog())
+            {
+                consoleControl.StartProcess(dlg.ViewModel.FileName, dlg.ViewModel.Args);
+                UpdateProcessState();
+            }
         }
 
         /// <summary>
