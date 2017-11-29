@@ -70,9 +70,8 @@
                     <Run Text="{Binding ProcessState}" />
                 </TextBlock>
             </StatusBar>
-        <consoleControl:ConsoleControl 
-            x:Name="consoleControl"
-            FontSize="14" />
+            
+        <consoleControl:ConsoleControl x:Name="consoleControl"/>
         </DockPanel>
     </Grid>
 </Window>
