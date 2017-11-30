@@ -26,6 +26,9 @@ namespace ConsoleControl.WPF
             processInterace.OnProcessError += processInterace_OnProcessError;
             processInterace.OnProcessInput += processInterace_OnProcessInput;
             processInterace.OnProcessExit += processInterace_OnProcessExit;
+
+            // Handle paste event
+            DataObject.AddPastingHandler(richTextBoxConsole, PasteCommand);
         }
 
         /// <summary>
@@ -97,61 +100,74 @@ namespace ConsoleControl.WPF
         void richTextBoxConsole_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (IsProcessRunning)
-            {
-                var offset = richTextBoxConsole.Selection.Start.GetOffsetToPosition(inputStartPos);
-
-                // The character index to the right of the cursor
-                var indexOfText = inputTextBuilder.Length - offset;
+            {                                                             
+                GetSelectionIndexes(out var startIndex, out var endIndex);
 
                 //  If we're at the input point and it's backspace                
                 if (e.Key == Key.Back)
-                    if (indexOfText <= 0 || inputTextBuilder.Length == 0 ||
-                        indexOfText > inputTextBuilder.Length)
+                    if (startIndex < 0  || startIndex > inputTextBuilder.Length ||
+                        endIndex   < 0  || endIndex   > inputTextBuilder.Length ||
+                        (startIndex == endIndex && startIndex == 0)             ||
+                        inputTextBuilder.Length == 0)
                     {
                         e.Handled = true;
                         return;
                     }
                     else
                     {
-                        inputTextBuilder.Remove(indexOfText - 1, 1);
+                        if (startIndex == endIndex)
+                            inputTextBuilder.Remove(startIndex - 1, 1);
+                        else if (startIndex > endIndex)
+                            inputTextBuilder.Remove(endIndex, startIndex - endIndex);
+                        else
+                            inputTextBuilder.Remove(startIndex, endIndex - startIndex);
+
                         return;
                     }
 
                 //  If we're at the input point and it's delete
                 if (e.Key == Key.Delete)
-                    if (indexOfText < 0 || inputTextBuilder.Length == 0 ||
-                        indexOfText >= inputTextBuilder.Length)
+                    if (startIndex < 0 || startIndex > inputTextBuilder.Length ||
+                        endIndex   < 0 || endIndex   > inputTextBuilder.Length ||
+                        (startIndex == endIndex && 
+                         startIndex == inputTextBuilder.Length)                ||
+                        inputTextBuilder.Length == 0)
                     {
                         e.Handled = true;
                         return;
                     }
                     else
                     {
-                        inputTextBuilder.Remove(indexOfText, 1);
+                        if (startIndex == endIndex)
+                            inputTextBuilder.Remove(startIndex, 1);
+                        else if (startIndex > endIndex)
+                            inputTextBuilder.Remove(endIndex, startIndex - endIndex);
+                        else
+                            inputTextBuilder.Remove(startIndex, endIndex - startIndex);
+
                         return;
                     }
 
                 //  If we're at the input point and it's space
                 if (e.Key == Key.Space)
-                    if (indexOfText < 0)
+                    if (startIndex < 0 || endIndex < 0 ||
+                        startIndex > inputTextBuilder.Length ||
+                        endIndex   > inputTextBuilder.Length)
                     {
                         e.Handled = true;
                         return;
                     }
                     else
                     {
-                        if (inputTextBuilder.Length <= indexOfText)
-                            inputTextBuilder.Append(' ');
-                        else
-                            inputTextBuilder.Insert(indexOfText, ' ');
+                        InsertTextIntoSelection(startIndex, endIndex, " ");
 
                         return;
                     }
 
                 //  Are we in the read-only zone?
-                if (indexOfText < 0)
+                if (startIndex < 0 || endIndex < 0)
                 {
-                    //  Allow arrows and Ctrl-C.
+                    //  Allow arrows and Ctrl+C.
                     if (!(e.Key == Key.Left ||
                         e.Key == Key.Right ||
                         e.Key == Key.Up ||
@@ -161,6 +177,28 @@ namespace ConsoleControl.WPF
                         e.Handled = true;
                         return;
                     }
+                }
+
+                // Allow Ctrl+X
+                if(e.Key == Key.X && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                {                
+                    if (startIndex < 0 || endIndex < 0 ||
+                        startIndex == endIndex)
+                    {
+                        e.Handled = true;
+                        return;
+                    }                                                                                
+
+                    InsertTextIntoSelection(startIndex, endIndex, string.Empty);
+
+                    return;
+                }
+
+                // Disallow Ctrl+Z
+                if (e.Key == Key.Z && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                {
+                    e.Handled = true;
+                    return;
                 }
 
                 //  Is it the return key?
@@ -188,23 +226,109 @@ namespace ConsoleControl.WPF
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="System.Windows.Input.TextCompositionEventArgs" /> instance containing the event data.</param>
         void richTextBoxConsole_PreviewTextInput(object sender, TextCompositionEventArgs e)
-        {
+        {   
             if (IsProcessRunning)
             {
-                var offset = richTextBoxConsole.Selection.Start.GetOffsetToPosition(inputStartPos);
-
-                // The character index to the right of the cursor
-                var indexOfText = inputTextBuilder.Length - offset;
+                GetSelectionIndexes(out var startIndex, out var endIndex);
 
                 // In read-only zone?
-                if (indexOfText < 0)
+                if (startIndex < 0 || endIndex < 0 ||
+                    startIndex > inputTextBuilder.Length ||
+                    endIndex   > inputTextBuilder.Length)
                     return;
 
-                if (inputTextBuilder.Length <= indexOfText)
-                    inputTextBuilder.Append(e.Text);
-                else
-                    inputTextBuilder.Insert(indexOfText, e.Text);
+                InsertTextIntoSelection(startIndex, endIndex, e.Text);
             }
+        }
+
+        /// <summary>
+        /// Handles the Paste event of the richTextBoxConsole control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="System.Windows.DataObjectPastingEventArgs" /> instance containing the event data.</param>
+        void PasteCommand(object sender, DataObjectPastingEventArgs e)
+        {                     
+            if (IsProcessRunning)
+            {
+                GetSelectionIndexes(out var startIndex, out var endIndex);
+
+                // In read-only zone?
+                if (startIndex < 0 || endIndex < 0 ||
+                    startIndex > inputTextBuilder.Length ||
+                    endIndex   > inputTextBuilder.Length)
+                    return;
+
+                var insertedText = (string)e.DataObject.GetData(typeof(string));
+
+                if (string.IsNullOrEmpty(insertedText))
+                    return;
+
+                InsertTextIntoSelection(startIndex, endIndex, insertedText);
+
+                var selection = new TextRange(richTextBoxConsole.Selection.Start, 
+                                              richTextBoxConsole.Selection.End);
+
+                selection.Text = insertedText;
+                selection.ApplyPropertyValue(TextElement.ForegroundProperty, 
+                                             new SolidColorBrush(Colors.White));
+                                                                                    
+                inputStartPos = richTextBoxConsole.Document.ContentEnd.GetPositionAtOffset(-2);
+
+                // Setting the caret to the end of the inserted text
+                if (startIndex > endIndex)
+                    richTextBoxConsole.CaretPosition = richTextBoxConsole.Selection.Start;
+                else
+                    richTextBoxConsole.CaretPosition = richTextBoxConsole.Selection.End;
+
+                e.CancelCommand();
+            }
+        }
+
+        /// <summary>
+        /// Returns the current start and end indexes of the current 
+        /// selection relative to the <see cref="inputTextBuilder"/>.
+        /// </summary>
+        /// <param name="startIndex">The character index to the right of the selection start.</param>
+        /// <param name="endIndex">The character index to the right of the selection end.</param>
+        void GetSelectionIndexes(out int startIndex, out int endIndex)
+        {
+            var startOffset = richTextBoxConsole.Selection.Start.GetOffsetToPosition(inputStartPos);
+
+            var endOffset = richTextBoxConsole.Selection.End.GetOffsetToPosition(inputStartPos);
+                                                                                         
+            startIndex = inputTextBuilder.Length - startOffset;
+
+            endIndex = inputTextBuilder.Length - endOffset;      
+        }
+
+        /// <summary>
+        /// Inserts <paramref name="text"/> into the <see cref="inputTextBuilder"/> according
+        /// to the <paramref name="start"/> and the <paramref name="end"/> indexes.  
+        /// </summary>
+        /// <param name="start">The start index of the <see cref="inputTextBuilder"/>.</param>
+        /// <param name="end">The end index of the <see cref="inputTextBuilder"/>.</param>
+        /// <param name="text">Inserted text.</param>
+        void InsertTextIntoSelection(int start, int end, string text)
+        {
+            int startIndex = 0;
+
+            if (start == end)
+                startIndex = end;
+            else if (start < end)
+            {
+                inputTextBuilder.Remove(start, end - start);
+                startIndex = start;
+            }
+            else
+            {
+                inputTextBuilder.Remove(end, start - end);
+                startIndex = end;                
+            }
+
+            if (inputTextBuilder.Length <= startIndex)
+                inputTextBuilder.Append(text);
+            else
+                inputTextBuilder.Insert(startIndex, text);
         }
 
         /// <summary>
