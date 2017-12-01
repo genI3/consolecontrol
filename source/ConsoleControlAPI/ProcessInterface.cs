@@ -67,6 +67,10 @@ namespace ConsoleControlAPI
                 var buffer = new char[1024];
                 do
                 {
+                    // Checking cancellation again for thread safe
+                    if (outputWorker.CancellationPending)
+                        return;
+
                     var builder = new StringBuilder();
                     count = outputReader.Read(buffer, 0, 1024);
                     builder.Append(buffer, 0, count);
@@ -106,6 +110,10 @@ namespace ConsoleControlAPI
                 var buffer = new char[1024];
                 do
                 {
+                    // Checking cancellation again for thread safe
+                    if (errorWorker.CancellationPending)
+                        return;
+
                     var builder = new StringBuilder();
                     count = errorReader.Read(buffer, 0, 1024);
                     builder.Append(buffer, 0, count);
