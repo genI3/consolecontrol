@@ -339,7 +339,8 @@ namespace ConsoleControl.WPF
         public void WriteOutput(string output, Color color)
         {
             if (string.IsNullOrEmpty(lastInput) == false &&
-                (output == lastInput || output.Replace("\r\n", "") == lastInput))
+                (output == lastInput || output.Replace("\r\n", "") == lastInput) ||
+                IsMute)
                 return;
 
             RunOnUIDespatcher(() =>
@@ -604,5 +605,22 @@ namespace ConsoleControl.WPF
             
             instance.ProcessInterface.OutputEncoding = System.Text.Encoding.GetEncoding((int)e.NewValue);
         }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this 
+        /// instance is write the output text to view.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if writing the output text to 
+        /// the view are disabled; otherwise, <c>false</c>.
+        /// </value>
+        public bool IsMute
+        {
+            get { return (bool)GetValue(IsMuteProperty); }
+            set { SetValue(IsMuteProperty, value); }
+        }
+                                                                                                                         
+        public static readonly DependencyProperty IsMuteProperty =
+            DependencyProperty.Register("IsMute", typeof(bool), typeof(ConsoleControl), new PropertyMetadata(false)); 
     }
 }
