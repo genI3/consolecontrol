@@ -39,7 +39,7 @@ namespace ConsoleControl.WPF
         void processInterface_OnProcessError(object sender, ProcessEventArgs args)
         {
             //  Write the output, in red
-            WriteOutput(args.Content, Colors.Red);
+            WriteOutput(args.Content, Brushes.Red);
 
             //  Fire the output event.
             FireProcessOutputEvent(args);
@@ -53,7 +53,7 @@ namespace ConsoleControl.WPF
         void processInterface_OnProcessOutput(object sender, ProcessEventArgs args)
         {
             //  Write the output, in white
-            WriteOutput(args.Content, Colors.White);
+            WriteOutput(args.Content, Foreground);
 
             //  Fire the output event.
             FireProcessOutputEvent(args);
@@ -82,7 +82,8 @@ namespace ConsoleControl.WPF
                 //  Are we showing diagnostics?
                 if (ShowDiagnostics)
                 {
-                    WriteOutput(Environment.NewLine + processInterface.ProcessFileName + " exited.", Color.FromArgb(255, 0, 255, 0));
+                    WriteOutput(Environment.NewLine + processInterface.ProcessFileName + " exited.",  
+                                new SolidColorBrush(Color.FromArgb(255, 0, 255, 0)));
                 }
 
                 richTextBoxConsole.IsReadOnly = true;
@@ -212,7 +213,7 @@ namespace ConsoleControl.WPF
                     var input = inputTextBuilder.ToString();
 
                     //  Write the input (without echoing).
-                    WriteInput(input, Colors.White, false);
+                    WriteInput(input, Foreground, false);
 
                     // Clear inputed text
                     inputTextBuilder.Clear();
@@ -269,8 +270,7 @@ namespace ConsoleControl.WPF
                                               richTextBoxConsole.Selection.End);
 
                 selection.Text = insertedText;
-                selection.ApplyPropertyValue(TextElement.ForegroundProperty, 
-                                             new SolidColorBrush(Colors.White));
+                selection.ApplyPropertyValue(TextElement.ForegroundProperty, Foreground);
                                                                                     
                 inputStartPos = richTextBoxConsole.Document.ContentEnd.GetPositionAtOffset(-2);
 
@@ -335,8 +335,8 @@ namespace ConsoleControl.WPF
         /// Writes the output to the console control.
         /// </summary>
         /// <param name="output">The output.</param>
-        /// <param name="color">The color.</param>
-        public void WriteOutput(string output, Color color)
+        /// <param name="brush">The brush.</param>
+        public void WriteOutput(string output, Brush brush)
         {
             if (string.IsNullOrEmpty(lastInput) == false &&
                 (output == lastInput || output.Replace("\r\n", "") == lastInput) ||
@@ -348,7 +348,7 @@ namespace ConsoleControl.WPF
                 //  Write the output.
                 var range = new TextRange(richTextBoxConsole.Document.ContentEnd, richTextBoxConsole.Document.ContentEnd);
                 range.Text = output;
-                range.ApplyPropertyValue(TextElement.ForegroundProperty, new SolidColorBrush(color));
+                range.ApplyPropertyValue(TextElement.ForegroundProperty, brush);
 
                 //  Record the new input start.
                 inputStartPos = richTextBoxConsole.Document.ContentEnd.GetPositionAtOffset(-2);
@@ -369,23 +369,23 @@ namespace ConsoleControl.WPF
 
             // Send standard clear screen command
             if (IsProcessRunning)
-                WriteInput("cls", Colors.White, false);
+                WriteInput("cls", Foreground, false);
         }
 
         /// <summary>
         /// Writes the input to the console control.
         /// </summary>
         /// <param name="input">The input.</param>
-        /// <param name="color">The color.</param>
+        /// <param name="brush">The brush.</param>
         /// <param name="echo">if set to <c>true</c> echo the input.</param>
-        public void WriteInput(string input, Color color, bool echo)
+        public void WriteInput(string input, Brush brush, bool echo)
         {
             RunOnUIDespatcher(() =>
             {
                 //  Are we echoing?
                 if (echo)
                 {
-                    richTextBoxConsole.Selection.ApplyPropertyValue(TextBlock.ForegroundProperty, new SolidColorBrush(color));
+                    richTextBoxConsole.Selection.ApplyPropertyValue(TextBlock.ForegroundProperty, brush);
                     richTextBoxConsole.AppendText(input);
                     inputStartPos = richTextBoxConsole.Selection.Start;
                 }
@@ -430,11 +430,12 @@ namespace ConsoleControl.WPF
             //  Are we showing diagnostics?
             if (ShowDiagnostics)
             {
-                WriteOutput("Preparing to run " + fileName, Color.FromArgb(255, 0, 255, 0));
+                WriteOutput("Preparing to run " + fileName, new SolidColorBrush(Color.FromArgb(255, 0, 255, 0)));
                 if (!string.IsNullOrEmpty(arguments))
-                    WriteOutput(" with arguments " + arguments + "." + Environment.NewLine, Color.FromArgb(255, 0, 255, 0));
+                    WriteOutput(" with arguments " + arguments + "." + Environment.NewLine, 
+                                new SolidColorBrush(Color.FromArgb(255, 0, 255, 0)));
                 else
-                    WriteOutput("." + Environment.NewLine, Color.FromArgb(255, 0, 255, 0));
+                    WriteOutput("." + Environment.NewLine, new SolidColorBrush(Color.FromArgb(255, 0, 255, 0)));
             }
 
             //  Start the process.

@@ -22,13 +22,15 @@
             <GradientStop Offset="1" Color="#000000" />
         </LinearGradientBrush>
     </UserControl.Background>
+    <UserControl.Foreground>White</UserControl.Foreground>
     
     <!-- The internal rich text box for the console. -->
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <RichTextBox x:Name="richTextBoxConsole" Foreground="White" 
+            <RichTextBox x:Name="richTextBoxConsole"
                          FontFamily="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type consoleControl:ConsoleControl}}, Path=FontFamily}"
                          Background="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type consoleControl:ConsoleControl}}, Path=Background}"
+                         Foreground="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type consoleControl:ConsoleControl}}, Path=Foreground}"
                          PreviewKeyDown="richTextBoxConsole_PreviewKeyDown"
                          PreviewTextInput="richTextBoxConsole_PreviewTextInput"
                          CaretBrush="White">
