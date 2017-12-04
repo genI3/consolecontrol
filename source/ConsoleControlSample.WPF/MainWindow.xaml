@@ -60,6 +60,25 @@
                         <Image Source="/ConsoleControlSample.WPF;component/Resources/Control_TextBox.png" 
                                 RenderOptions.BitmapScalingMode="Linear" Width="16" Height="16" />
                     </ToggleButton>
+                    <ToggleButton IsChecked="{Binding IsMute, ElementName=consoleControl}" 
+                        ToolTip="Mute">
+                        <Image RenderOptions.BitmapScalingMode="Linear" Width="16" Height="16">
+                            <Image.Style>
+                                <Style TargetType="{x:Type Image}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMute, ElementName=consoleControl}" Value="true">
+                                            <Setter Property="Source" 
+                                                    Value="/ConsoleControlSample.WPF;component/Resources/MuteOn.png"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsMute, ElementName=consoleControl}" Value="false">
+                                            <Setter Property="Source" 
+                                                    Value="/ConsoleControlSample.WPF;component/Resources/MuteOff.png"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Image.Style>
+                        </Image>
+                    </ToggleButton>
                 </ToolBar>
             </ToolBarTray>
             
@@ -70,9 +89,8 @@
                     <Run Text="{Binding ProcessState}" />
                 </TextBlock>
             </StatusBar>
-        <consoleControl:ConsoleControl 
-            x:Name="consoleControl"
-            FontSize="14" />
+            
+        <consoleControl:ConsoleControl x:Name="consoleControl"/>
         </DockPanel>
     </Grid>
 </Window>

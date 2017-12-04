@@ -22,56 +22,59 @@ namespace ConsoleControl.WPF
             InitializeComponent();
 
             //  Handle process events.
-            processInterace.OnProcessOutput += processInterace_OnProcessOutput;
-            processInterace.OnProcessError += processInterace_OnProcessError;
-            processInterace.OnProcessInput += processInterace_OnProcessInput;
-            processInterace.OnProcessExit += processInterace_OnProcessExit;
+            processInterface.OnProcessOutput += processInterface_OnProcessOutput;
+            processInterface.OnProcessError += processInterface_OnProcessError;
+            processInterface.OnProcessInput += processInterface_OnProcessInput;
+            processInterface.OnProcessExit += processInterface_OnProcessExit;
+
+            // Handle paste event
+            DataObject.AddPastingHandler(richTextBoxConsole, PasteCommand);
         }
 
         /// <summary>
-        /// Handles the OnProcessError event of the processInterace control.
+        /// Handles the OnProcessError event of the processInterface control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="args">The <see cref="ProcessEventArgs"/> instance containing the event data.</param>
-        void processInterace_OnProcessError(object sender, ProcessEventArgs args)
+        void processInterface_OnProcessError(object sender, ProcessEventArgs args)
         {
             //  Write the output, in red
-            WriteOutput(args.Content, Colors.Red);
+            WriteOutput(args.Content, Brushes.Red);
 
             //  Fire the output event.
             FireProcessOutputEvent(args);
         }
 
         /// <summary>
-        /// Handles the OnProcessOutput event of the processInterace control.
+        /// Handles the OnProcessOutput event of the processInterface control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="args">The <see cref="ProcessEventArgs"/> instance containing the event data.</param>
-        void processInterace_OnProcessOutput(object sender, ProcessEventArgs args)
+        void processInterface_OnProcessOutput(object sender, ProcessEventArgs args)
         {
             //  Write the output, in white
-            WriteOutput(args.Content, Colors.White);
+            WriteOutput(args.Content, Foreground);
 
             //  Fire the output event.
             FireProcessOutputEvent(args);
         }
 
         /// <summary>
-        /// Handles the OnProcessInput event of the processInterace control.
+        /// Handles the OnProcessInput event of the processInterface control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="args">The <see cref="ProcessEventArgs"/> instance containing the event data.</param>
-        void processInterace_OnProcessInput(object sender, ProcessEventArgs args)
+        void processInterface_OnProcessInput(object sender, ProcessEventArgs args)
         {
             FireProcessInputEvent(args);
         }
 
         /// <summary>
-        /// Handles the OnProcessExit event of the processInterace control.
+        /// Handles the OnProcessExit event of the processInterface control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="args">The <see cref="ProcessEventArgs"/> instance containing the event data.</param>
-        void processInterace_OnProcessExit(object sender, ProcessEventArgs args)
+        void processInterface_OnProcessExit(object sender, ProcessEventArgs args)
         {
             //  Read only again.
             RunOnUIDespatcher(() =>
@@ -79,7 +82,8 @@ namespace ConsoleControl.WPF
                 //  Are we showing diagnostics?
                 if (ShowDiagnostics)
                 {
-                    WriteOutput(Environment.NewLine + processInterace.ProcessFileName + " exited.", Color.FromArgb(255, 0, 255, 0));
+                    WriteOutput(Environment.NewLine + processInterface.ProcessFileName + " exited.",  
+                                new SolidColorBrush(Color.FromArgb(255, 0, 255, 0)));
                 }
 
                 richTextBoxConsole.IsReadOnly = true;
@@ -97,61 +101,74 @@ namespace ConsoleControl.WPF
         void richTextBoxConsole_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (IsProcessRunning)
-            {
-                var offset = richTextBoxConsole.Selection.Start.GetOffsetToPosition(inputStartPos);
-
-                // The character index to the right of the cursor
-                var indexOfText = inputTextBuilder.Length - offset;
+            {                                                             
+                GetSelectionIndexes(out var startIndex, out var endIndex);
 
                 //  If we're at the input point and it's backspace                
                 if (e.Key == Key.Back)
-                    if (indexOfText <= 0 || inputTextBuilder.Length == 0 ||
-                        indexOfText > inputTextBuilder.Length)
+                    if (startIndex < 0  || startIndex > inputTextBuilder.Length ||
+                        endIndex   < 0  || endIndex   > inputTextBuilder.Length ||
+                        (startIndex == endIndex && startIndex == 0)             ||
+                        inputTextBuilder.Length == 0)
                     {
                         e.Handled = true;
                         return;
                     }
                     else
                     {
-                        inputTextBuilder.Remove(indexOfText - 1, 1);
+                        if (startIndex == endIndex)
+                            inputTextBuilder.Remove(startIndex - 1, 1);
+                        else if (startIndex > endIndex)
+                            inputTextBuilder.Remove(endIndex, startIndex - endIndex);
+                        else
+                            inputTextBuilder.Remove(startIndex, endIndex - startIndex);
+
                         return;
                     }
 
                 //  If we're at the input point and it's delete
                 if (e.Key == Key.Delete)
-                    if (indexOfText < 0 || inputTextBuilder.Length == 0 ||
-                        indexOfText >= inputTextBuilder.Length)
+                    if (startIndex < 0 || startIndex > inputTextBuilder.Length ||
+                        endIndex   < 0 || endIndex   > inputTextBuilder.Length ||
+                        (startIndex == endIndex && 
+                         startIndex == inputTextBuilder.Length)                ||
+                        inputTextBuilder.Length == 0)
                     {
                         e.Handled = true;
                         return;
                     }
                     else
                     {
-                        inputTextBuilder.Remove(indexOfText, 1);
+                        if (startIndex == endIndex)
+                            inputTextBuilder.Remove(startIndex, 1);
+                        else if (startIndex > endIndex)
+                            inputTextBuilder.Remove(endIndex, startIndex - endIndex);
+                        else
+                            inputTextBuilder.Remove(startIndex, endIndex - startIndex);
+
                         return;
                     }
 
                 //  If we're at the input point and it's space
                 if (e.Key == Key.Space)
-                    if (indexOfText < 0)
+                    if (startIndex < 0 || endIndex < 0 ||
+                        startIndex > inputTextBuilder.Length ||
+                        endIndex   > inputTextBuilder.Length)
                     {
                         e.Handled = true;
                         return;
                     }
                     else
                     {
-                        if (inputTextBuilder.Length <= indexOfText)
-                            inputTextBuilder.Append(' ');
-                        else
-                            inputTextBuilder.Insert(indexOfText, ' ');
+                        InsertTextIntoSelection(startIndex, endIndex, " ");
 
                         return;
                     }
 
                 //  Are we in the read-only zone?
-                if (indexOfText < 0)
+                if (startIndex < 0 || endIndex < 0)
                 {
-                    //  Allow arrows and Ctrl-C.
+                    //  Allow arrows and Ctrl+C.
                     if (!(e.Key == Key.Left ||
                         e.Key == Key.Right ||
                         e.Key == Key.Up ||
@@ -161,6 +178,28 @@ namespace ConsoleControl.WPF
                         e.Handled = true;
                         return;
                     }
+                }
+
+                // Allow Ctrl+X
+                if(e.Key == Key.X && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                {                
+                    if (startIndex < 0 || endIndex < 0 ||
+                        startIndex == endIndex)
+                    {
+                        e.Handled = true;
+                        return;
+                    }                                                                                
+
+                    InsertTextIntoSelection(startIndex, endIndex, string.Empty);
+
+                    return;
+                }
+
+                // Disallow Ctrl+Z
+                if (e.Key == Key.Z && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                {
+                    e.Handled = true;
+                    return;
                 }
 
                 //  Is it the return key?
@@ -174,7 +213,7 @@ namespace ConsoleControl.WPF
                     var input = inputTextBuilder.ToString();
 
                     //  Write the input (without echoing).
-                    WriteInput(input, Colors.White, false);
+                    WriteInput(input, Foreground, false);
 
                     // Clear inputed text
                     inputTextBuilder.Clear();
@@ -188,34 +227,120 @@ namespace ConsoleControl.WPF
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="System.Windows.Input.TextCompositionEventArgs" /> instance containing the event data.</param>
         void richTextBoxConsole_PreviewTextInput(object sender, TextCompositionEventArgs e)
-        {
+        {   
             if (IsProcessRunning)
             {
-                var offset = richTextBoxConsole.Selection.Start.GetOffsetToPosition(inputStartPos);
-
-                // The character index to the right of the cursor
-                var indexOfText = inputTextBuilder.Length - offset;
+                GetSelectionIndexes(out var startIndex, out var endIndex);
 
                 // In read-only zone?
-                if (indexOfText < 0)
+                if (startIndex < 0 || endIndex < 0 ||
+                    startIndex > inputTextBuilder.Length ||
+                    endIndex   > inputTextBuilder.Length)
                     return;
 
-                if (inputTextBuilder.Length <= indexOfText)
-                    inputTextBuilder.Append(e.Text);
-                else
-                    inputTextBuilder.Insert(indexOfText, e.Text);
+                InsertTextIntoSelection(startIndex, endIndex, e.Text);
             }
+        }
+
+        /// <summary>
+        /// Handles the Paste event of the richTextBoxConsole control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="System.Windows.DataObjectPastingEventArgs" /> instance containing the event data.</param>
+        void PasteCommand(object sender, DataObjectPastingEventArgs e)
+        {                     
+            if (IsProcessRunning)
+            {
+                GetSelectionIndexes(out var startIndex, out var endIndex);
+
+                // In read-only zone?
+                if (startIndex < 0 || endIndex < 0 ||
+                    startIndex > inputTextBuilder.Length ||
+                    endIndex   > inputTextBuilder.Length)
+                    return;
+
+                var insertedText = (string)e.DataObject.GetData(typeof(string));
+
+                if (string.IsNullOrEmpty(insertedText))
+                    return;
+
+                InsertTextIntoSelection(startIndex, endIndex, insertedText);
+
+                var selection = new TextRange(richTextBoxConsole.Selection.Start, 
+                                              richTextBoxConsole.Selection.End);
+
+                selection.Text = insertedText;
+                selection.ApplyPropertyValue(TextElement.ForegroundProperty, Foreground);
+                                                                                    
+                inputStartPos = richTextBoxConsole.Document.ContentEnd.GetPositionAtOffset(-2);
+
+                // Setting the caret to the end of the inserted text
+                if (startIndex > endIndex)
+                    richTextBoxConsole.CaretPosition = richTextBoxConsole.Selection.Start;
+                else
+                    richTextBoxConsole.CaretPosition = richTextBoxConsole.Selection.End;
+
+                e.CancelCommand();
+            }
+        }
+
+        /// <summary>
+        /// Returns the current start and end indexes of the current 
+        /// selection relative to the <see cref="inputTextBuilder"/>.
+        /// </summary>
+        /// <param name="startIndex">The character index to the right of the selection start.</param>
+        /// <param name="endIndex">The character index to the right of the selection end.</param>
+        void GetSelectionIndexes(out int startIndex, out int endIndex)
+        {
+            var startOffset = richTextBoxConsole.Selection.Start.GetOffsetToPosition(inputStartPos);
+
+            var endOffset = richTextBoxConsole.Selection.End.GetOffsetToPosition(inputStartPos);
+                                                                                         
+            startIndex = inputTextBuilder.Length - startOffset;
+
+            endIndex = inputTextBuilder.Length - endOffset;      
+        }
+
+        /// <summary>
+        /// Inserts <paramref name="text"/> into the <see cref="inputTextBuilder"/> according
+        /// to the <paramref name="start"/> and the <paramref name="end"/> indexes.  
+        /// </summary>
+        /// <param name="start">The start index of the <see cref="inputTextBuilder"/>.</param>
+        /// <param name="end">The end index of the <see cref="inputTextBuilder"/>.</param>
+        /// <param name="text">Inserted text.</param>
+        void InsertTextIntoSelection(int start, int end, string text)
+        {
+            int startIndex = 0;
+
+            if (start == end)
+                startIndex = end;
+            else if (start < end)
+            {
+                inputTextBuilder.Remove(start, end - start);
+                startIndex = start;
+            }
+            else
+            {
+                inputTextBuilder.Remove(end, start - end);
+                startIndex = end;                
+            }
+
+            if (inputTextBuilder.Length <= startIndex)
+                inputTextBuilder.Append(text);
+            else
+                inputTextBuilder.Insert(startIndex, text);
         }
 
         /// <summary>
         /// Writes the output to the console control.
         /// </summary>
         /// <param name="output">The output.</param>
-        /// <param name="color">The color.</param>
-        public void WriteOutput(string output, Color color)
+        /// <param name="brush">The brush.</param>
+        public void WriteOutput(string output, Brush brush)
         {
             if (string.IsNullOrEmpty(lastInput) == false &&
-                (output == lastInput || output.Replace("\r\n", "") == lastInput))
+                (output == lastInput || output.Replace("\r\n", "") == lastInput) ||
+                IsMute)
                 return;
 
             RunOnUIDespatcher(() =>
@@ -223,7 +348,7 @@ namespace ConsoleControl.WPF
                 //  Write the output.
                 var range = new TextRange(richTextBoxConsole.Document.ContentEnd, richTextBoxConsole.Document.ContentEnd);
                 range.Text = output;
-                range.ApplyPropertyValue(TextElement.ForegroundProperty, new SolidColorBrush(color));
+                range.ApplyPropertyValue(TextElement.ForegroundProperty, brush);
 
                 //  Record the new input start.
                 inputStartPos = richTextBoxConsole.Document.ContentEnd.GetPositionAtOffset(-2);
@@ -244,23 +369,23 @@ namespace ConsoleControl.WPF
 
             // Send standard clear screen command
             if (IsProcessRunning)
-                WriteInput("cls", Colors.White, false);
+                WriteInput("cls", Foreground, false);
         }
 
         /// <summary>
         /// Writes the input to the console control.
         /// </summary>
         /// <param name="input">The input.</param>
-        /// <param name="color">The color.</param>
+        /// <param name="brush">The brush.</param>
         /// <param name="echo">if set to <c>true</c> echo the input.</param>
-        public void WriteInput(string input, Color color, bool echo)
+        public void WriteInput(string input, Brush brush, bool echo)
         {
             RunOnUIDespatcher(() =>
             {
                 //  Are we echoing?
                 if (echo)
                 {
-                    richTextBoxConsole.Selection.ApplyPropertyValue(TextBlock.ForegroundProperty, new SolidColorBrush(color));
+                    richTextBoxConsole.Selection.ApplyPropertyValue(TextBlock.ForegroundProperty, brush);
                     richTextBoxConsole.AppendText(input);
                     inputStartPos = richTextBoxConsole.Selection.Start;
                 }
@@ -268,7 +393,7 @@ namespace ConsoleControl.WPF
                 lastInput = input;
 
                 //  Write the input.
-                processInterace.WriteInput(input);
+                processInterface.WriteInput(input);
 
                 //  Fire the event.
                 FireProcessInputEvent(new ProcessEventArgs(input));
@@ -305,15 +430,16 @@ namespace ConsoleControl.WPF
             //  Are we showing diagnostics?
             if (ShowDiagnostics)
             {
-                WriteOutput("Preparing to run " + fileName, Color.FromArgb(255, 0, 255, 0));
+                WriteOutput("Preparing to run " + fileName, new SolidColorBrush(Color.FromArgb(255, 0, 255, 0)));
                 if (!string.IsNullOrEmpty(arguments))
-                    WriteOutput(" with arguments " + arguments + "." + Environment.NewLine, Color.FromArgb(255, 0, 255, 0));
+                    WriteOutput(" with arguments " + arguments + "." + Environment.NewLine, 
+                                new SolidColorBrush(Color.FromArgb(255, 0, 255, 0)));
                 else
-                    WriteOutput("." + Environment.NewLine, Color.FromArgb(255, 0, 255, 0));
+                    WriteOutput("." + Environment.NewLine, new SolidColorBrush(Color.FromArgb(255, 0, 255, 0)));
             }
 
             //  Start the process.
-            processInterace.StartProcess(fileName, arguments);
+            processInterface.StartProcess(fileName, arguments);
 
             RunOnUIDespatcher(() =>
             {
@@ -334,7 +460,7 @@ namespace ConsoleControl.WPF
         public void StopProcess()
         {
             //  Stop the interface.
-            processInterace.StopProcess();
+            processInterface.StopProcess();
         }
 
         /// <summary>
@@ -364,7 +490,7 @@ namespace ConsoleControl.WPF
         /// <summary>
         /// The internal process interface used to interface with the process.
         /// </summary>
-        private readonly ProcessInterface processInterace = new ProcessInterface();
+        private readonly ProcessInterface processInterface = new ProcessInterface();
 
         /// <summary>
         /// Current position that input starts at.
@@ -455,7 +581,7 @@ namespace ConsoleControl.WPF
         /// </value>
         public ProcessInterface ProcessInterface
         {
-            get { return processInterace; }
+            get { return processInterface; }
         }
 
         /// <summary>
@@ -480,5 +606,22 @@ namespace ConsoleControl.WPF
             
             instance.ProcessInterface.OutputEncoding = System.Text.Encoding.GetEncoding((int)e.NewValue);
         }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this 
+        /// instance is write the output text to view.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if writing the output text to 
+        /// the view are disabled; otherwise, <c>false</c>.
+        /// </value>
+        public bool IsMute
+        {
+            get { return (bool)GetValue(IsMuteProperty); }
+            set { SetValue(IsMuteProperty, value); }
+        }
+                                                                                                                         
+        public static readonly DependencyProperty IsMuteProperty =
+            DependencyProperty.Register("IsMute", typeof(bool), typeof(ConsoleControl), new PropertyMetadata(false)); 
     }
 }
